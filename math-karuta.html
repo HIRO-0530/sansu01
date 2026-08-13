@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>足し算・引き算カルタ</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0fdf4; /* Light green background */
+            touch-action: manipulation; /* Prevent double-tap zoom on mobile/tablet */
+        }
+        
+        .card {
+            transition: transform 0.1s, box-shadow 0.1s;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .card:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+        
+        /* Shake animation for incorrect answer */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-1deg); }
+            50% { transform: translateX(5px) rotate(1deg); }
+            75% { transform: translateX(-5px) rotate(-1deg); }
+            100% { transform: translateX(0); }
+        }
+        .shake-animation {
+            animation: shake 0.4s ease-in-out;
+            background-color: #fee2e2 !important; /* Light red */
+            border-color: #ef4444 !important; /* Red border */
+            color: #b91c1c !important;
+        }
+
+        /* Pop animation for correct answer */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .pop-animation {
+            animation: pop 0.3s ease-in-out;
+            background-color: #bbf7d0 !important; /* Light green */
+            border-color: #22c55e !important; /* Green border */
+            color: #15803d !important;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+        }
+
+        /* おはじきのタッチアクションを制御してスワイプ時のスクロールを防止 */
+        #ohajikiArea {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-[100dvh] overflow-hidden relative">
+
+    <!-- Start & Ranking Screen Overlay -->
+    <div id="startScreen" class="absolute inset-0 bg-green-50 z-50 flex flex-col items-center justify-center p-4 transition-opacity duration-300">
+        <h1 class="text-4xl md:text-6xl font-bold text-green-700 mb-8 tracking-wider drop-shadow-sm text-center">さんすうカルタ</h1>
+        <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b-2 border-green-200 pb-2">ランキング (TOP 5)</h2>
+            <ul id="rankingList" class="text-lg text-gray-700 mb-8 space-y-2">
+                <!-- Rankings will be injected here -->
+            </ul>
+            <button id="mainStartButton" class="w-full h-16 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full shadow-lg text-2xl transition-transform transform hover:scale-105 flex items-center justify-center">
+                スタート！
+            </button>
+        </div>
+    </div>
+
+    <!-- Result Screen Overlay -->
+    <div id="resultScreen" class="absolute inset-0 bg-black/60 z-50 hidden flex-col items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-10 w-full max-w-lg text-center">
+            <h2 class="text-3xl md:text-4xl font-bold text-blue-600 mb-2">タイムアップ！</h2>
+            <p class="text-xl text-gray-600 mb-4">あなたのスコア</p>
+            <div class="text-6xl md:text-8xl font-black text-gray-800 mb-6" id="finalScoreDisplay">0</div>
+            
+            <!-- High Score Entry Form -->
+            <div id="highScoreEntry" class="hidden flex-col items-center w-full mb-6">
+                <p class="text-red-500 font-bold text-xl mb-3 animate-pulse">🎉 ランクイン！ 🎉</p>
+                <input type="text" id="playerNameInput" maxlength="10" placeholder="なまえ (10もじまで)" class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl text-xl text-center focus:outline-none focus:border-blue-500 mb-4">
+                <button id="registerScoreButton" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow text-xl transition-colors">
+                    ランキングに登録する
+                </button>
+            </div>
+            
+            <button id="backToStartButton" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl shadow text-xl transition-colors">
+                さいしょに戻る
+            </button>
+        </div>
+    </div>
+
+    <!-- Header / Score Area -->
+    <header class="bg-white shadow-md p-2 md:p-3 flex justify-between items-center z-10 flex-shrink-0">
+        <h1 class="text-xl md:text-2xl font-bold text-green-700 hidden md:block">さんすうカルタ</h1>
+        <div class="flex gap-4 md:gap-8 mx-auto md:mx-0">
+            <div class="text-base md:text-xl font-bold text-gray-700 bg-red-50 px-3 md:px-5 py-1 md:py-2 rounded-full border border-red-200">
+                のこり: <span id="timeDisplay" class="text-2xl md:text-3xl text-red-600">60</span> 秒
+            </div>
+            <div class="text-base md:text-xl font-bold text-gray-700 bg-blue-50 px-3 md:px-5 py-1 md:py-2 rounded-full border border-blue-200">
+                スコア: <span id="scoreDisplay" class="text-2xl md:text-3xl text-blue-600">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Question Area -->
+    <section class="flex-shrink-0 bg-blue-50 border-b-4 border-blue-200 p-3 md:p-4 flex flex-col justify-center items-center shadow-inner relative h-32 md:h-40">
+        <div class="text-gray-500 text-xs md:text-sm mb-1 font-medium tracking-wider">もんだい</div>
+        
+        <div id="questionDisplay" class="text-4xl md:text-6xl font-extrabold tracking-widest opacity-0 transition-opacity duration-300">
+            ? + ? =
+        </div>
+        
+        <!-- Feedback messages -->
+        <div id="feedbackMessage" class="absolute bottom-1 md:bottom-2 text-lg md:text-xl font-bold opacity-0 transition-opacity duration-200 pointer-events-none">
+            せいかい！
+        </div>
+
+        <!-- Score Float Animation -->
+        <div id="scorePopup" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-4xl md:text-5xl font-black opacity-0 pointer-events-none transition-all duration-300 drop-shadow-md z-30">
+        </div>
+    </section>
+
+    <!-- Cards and Ohajiki Area -->
+    <main class="flex-grow p-2 md:p-4 bg-green-50 flex flex-col items-center justify-start overflow-hidden gap-3 md:gap-4">
+        <!-- 4 Options Row (Horizontal 1 row) -->
+        <div id="cardGrid" class="w-full max-w-4xl grid grid-cols-4 gap-2 md:gap-4 flex-shrink-0">
+            <!-- Cards will be generated here by JavaScript -->
+        </div>
+        
+        <!-- Ohajiki Area (Expanded) -->
+        <div id="ohajikiArea" class="w-full max-w-4xl flex-grow bg-white rounded-2xl shadow-inner p-3 md:p-6 border-4 border-green-100 overflow-y-auto">
+            <!-- Ohajikis will be generated here -->
+        </div>
+    </main>
+
+    <script>
+        // --- Sound Setup (Tone.js) ---
+        // Synthesizer for correct answer (bright, happy sound)
+        const synthCorrect = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 }
+        }).toDestination();
+
+        // Synthesizer for incorrect answer (low, dull sound)
+        const synthIncorrect = new Tone.Synth({
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.05, decay: 0.2, sustain: 0, release: 0.5 }
+        }).toDestination();
+
+        function playCorrectSound() {
+            if (Tone.context.state !== 'running') Tone.start();
+            // Play a major chord arpeggio
+            const now = Tone.now();
+            synthCorrect.triggerAttackRelease("C5", "8n", now);
+            synthCorrect.triggerAttackRelease("E5", "8n", now + 0.1);
+            synthCorrect.triggerAttackRelease("G5", "4n", now + 0.2);
+        }
+
+        function playIncorrectSound() {
+            if (Tone.context.state !== 'running') Tone.start();
+            // Play a low, descending tone
+            const now = Tone.now();
+            synthIncorrect.triggerAttackRelease("C3", "8n", now);
+            synthIncorrect.frequency.rampTo("G2", 0.3, now);
+        }
+
+        // --- Game Logic ---
+        // DOM Elements
+        const cardGrid = document.getElementById('cardGrid');
+        const ohajikiArea = document.getElementById('ohajikiArea');
+        const questionDisplay = document.getElementById('questionDisplay');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const scorePopup = document.getElementById('scorePopup');
+        
+        // Screen Elements
+        const startScreen = document.getElementById('startScreen');
+        const resultScreen = document.getElementById('resultScreen');
+        const mainStartButton = document.getElementById('mainStartButton');
+        const rankingList = document.getElementById('rankingList');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const highScoreEntry = document.getElementById('highScoreEntry');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const registerScoreButton = document.getElementById('registerScoreButton');
+        const backToStartButton = document.getElementById('backToStartButton');
+
+        // Game State
+        let currentAnswer = null;
+        let score = 0;
+        let timeLeft = 60; // 60 seconds
+        let isPlaying = false;
+        let timerInterval;
+        let questionStartTime = 0;
+        
+        // Load High Scores from Local Storage
+        let highScores = JSON.parse(localStorage.getItem('karutaHighScores')) || [];
+
+        function updateRankingDisplay() {
+            rankingList.innerHTML = '';
+            if (highScores.length === 0) {
+                rankingList.innerHTML = '<li class="text-gray-400 py-4">まだ記録がありません</li>';
+                return;
+            }
+            
+            // Sort just in case
+            highScores.sort((a, b) => b.score - a.score);
+            
+            highScores.slice(0, 5).forEach((entry, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center bg-gray-50 px-4 py-3 rounded-xl border border-gray-100';
+                
+                let medal = '';
+                if (index === 0) medal = '🥇';
+                else if (index === 1) medal = '🥈';
+                else if (index === 2) medal = '🥉';
+                else medal = `<span class="inline-block w-6 text-center text-gray-400 font-bold">${index + 1}</span>`;
+                
+                // Escape HTML to prevent XSS
+                const safeName = entry.name.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
+                
+                li.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">${medal}</span>
+                        <span class="font-bold text-gray-700">${safeName}</span>
+                    </div>
+                    <span class="font-black text-blue-600 text-xl">${entry.score} pt</span>
+                `;
+                rankingList.appendChild(li);
+            });
+        }
+
+        // おはじきの状態を切り替える関数 (引き算用)
+        function toggleOhajikiState(el, forceOff = false) {
+            if (el.dataset.type !== 'sub') return;
+            // touch-noneを追加してデフォルトのスクロールやズームを抑制
+            const baseClass = 'ohajiki-item w-8 h-8 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center shadow-sm transition-all duration-200 cursor-pointer flex-shrink-0 touch-none select-none';
+            
+            if (forceOff || el.dataset.active === "true") {
+                el.dataset.active = "false";
+                el.className = `${baseClass} bg-blue-100 opacity-60 scale-90`;
+                // 中の×マークがスワイプ判定の邪魔にならないようpointer-events-noneを付与
+                el.innerHTML = '<span class="text-gray-400 font-bold text-2xl md:text-3xl leading-none pointer-events-none">×</span>';
+            } else if (!forceOff) {
+                el.dataset.active = "true";
+                el.className = `${baseClass} bg-blue-500`;
+                el.innerHTML = '';
+            }
+        }
+
+        // おはじきの描画
+        function drawOhajiki(num1, num2, operator) {
+            ohajikiArea.innerHTML = '';
+            
+            // 全体を中央に配置しつつ、内部の行は左端を揃えるためのラッパー
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex flex-col items-start mx-auto w-fit'; // w-fitでコンテンツ幅に合わせる
+            
+            const elements = [];
+            const baseClass = 'ohajiki-item w-8 h-8 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center shadow-sm transition-all duration-200 cursor-pointer flex-shrink-0 touch-none select-none';
+            
+            if (operator === '+') {
+                // 足し算は赤色とオレンジ色のおはじき
+                for (let i = 0; i < num1; i++) {
+                    let o = document.createElement('div');
+                    o.className = `${baseClass} bg-red-400`;
+                    elements.push(o);
+                }
+                for (let i = 0; i < num2; i++) {
+                    let o = document.createElement('div');
+                    o.className = `${baseClass} bg-orange-400`;
+                    elements.push(o);
+                }
+            } else { // '-'
+                // 引き算は青色のおはじき。タッチやスライドで消せるようにする。
+                for (let i = 0; i < num1; i++) {
+                    let o = document.createElement('div');
+                    o.className = `${baseClass} bg-blue-500`;
+                    o.dataset.active = "true";
+                    o.dataset.type = "sub"; // 引き算のおはじきであることを明示
+                    
+                    // クリック(PC/単発タップ)でのトグル
+                    o.addEventListener('mousedown', function(e) {
+                        toggleOhajikiState(this);
+                    });
+                    
+                    // PCでのドラッグ中(なぞる)操作
+                    o.addEventListener('mouseenter', function(e) {
+                        if (e.buttons === 1) { // 左クリック押下中の場合
+                            toggleOhajikiState(this, true); // なぞったときは消す動作(×)にする
+                        }
+                    });
+                    
+                    elements.push(o);
+                }
+            }
+
+            // 5個ずつ行（div）に分けてラッパーに追加する
+            let currentRow;
+            elements.forEach((el, index) => {
+                if (index % 5 === 0) {
+                    currentRow = document.createElement('div');
+                    // justify-start に変更して左揃えに
+                    currentRow.className = 'flex gap-2 md:gap-3 mb-2 md:mb-3 justify-start w-full';
+                    wrapper.appendChild(currentRow);
+                }
+                currentRow.appendChild(el);
+            });
+            
+            ohajikiArea.appendChild(wrapper);
+        }
+
+        // スマホやタブレットでのスライド（スワイプ）操作対応
+        ohajikiArea.addEventListener('touchmove', (e) => {
+            // スワイプ中に画面がスクロールするのを防ぐ
+            e.preventDefault(); 
+            
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                // スワイプしている座標にある要素を取得
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target && target.classList.contains('ohajiki-item')) {
+                    // なぞった要素が引き算のおはじきなら×をつける
+                    toggleOhajikiState(target, true);
+                }
+            }
+        }, { passive: false });
+
+        // 4つの選択肢の生成
+        function generateOptions(answer) {
+            cardGrid.innerHTML = ''; 
+            let options = [answer];
+            
+            // 正解以外のダミーの選択肢を3つ生成 (0〜19の範囲)
+            while(options.length < 4) {
+                let rand = Math.floor(Math.random() * 20);
+                if(!options.includes(rand)) {
+                    options.push(rand);
+                }
+            }
+            
+            // 選択肢を昇順（0〜19の順）に並べ替える
+            options.sort((a, b) => a - b);
+
+            options.forEach(num => {
+                const card = document.createElement('button');
+                // 横1列（4列グリッド）用に高さを調整
+                card.className = 'card bg-white border-4 border-gray-200 rounded-2xl shadow-md text-3xl md:text-5xl font-black text-gray-700 flex items-center justify-center w-full h-20 md:h-28 cursor-pointer hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all';
+                card.textContent = num;
+                card.dataset.value = num;
+                card.addEventListener('click', () => handleCardClick(card, num));
+                cardGrid.appendChild(card);
+            });
+        }
+
+        function generateProblem() {
+            let num1, num2, operator, answer;
+            let isValidProblem = false;
+
+            while (!isValidProblem) {
+                operator = Math.random() < 0.5 ? '+' : '-';
+                num1 = Math.floor(Math.random() * 19) + 1;
+                num2 = Math.floor(Math.random() * 19) + 1;
+
+                if (operator === '+') {
+                    answer = num1 + num2;
+                    if (answer <= 19) isValidProblem = true;
+                } else {
+                    answer = num1 - num2;
+                    if (answer >= 0 && answer <= 19) isValidProblem = true;
+                }
+            }
+
+            currentAnswer = answer;
+            const operatorSymbol = operator === '+' ? '＋' : '－';
+            
+            // 選択肢とおはじきの生成
+            generateOptions(currentAnswer);
+            drawOhajiki(num1, num2, operator);
+            
+            // 足し算は赤色、引き算は青色
+            questionDisplay.className = `text-4xl md:text-6xl font-extrabold tracking-widest opacity-0 transition-opacity duration-300 ${operator === '+' ? 'text-red-500' : 'text-blue-500'}`;
+            
+            questionDisplay.style.opacity = 0;
+            setTimeout(() => {
+                questionDisplay.textContent = `${num1} ${operatorSymbol} ${num2}`;
+                questionDisplay.style.opacity = 1;
+                // Record time when question appears
+                questionStartTime = Date.now();
+            }, 200);
+        }
+
+        function showScorePopup(text, colorClass) {
+            scorePopup.textContent = text;
+            // Reset position
+            scorePopup.style.transform = 'translate(-50%, -50%)';
+            scorePopup.className = `absolute top-1/2 left-1/2 text-5xl md:text-6xl font-black ${colorClass} opacity-0 pointer-events-none transition-all duration-300 drop-shadow-lg z-30`;
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                scorePopup.style.opacity = 1;
+                scorePopup.style.transform = 'translate(-50%, -150%)'; // Move up
+            });
+            
+            setTimeout(() => {
+                scorePopup.style.opacity = 0;
+            }, 600);
+        }
+
+        function handleCardClick(cardElement, clickedValue) {
+            if (!isPlaying) return;
+            if (cardElement.classList.contains('pop-animation') || cardElement.classList.contains('shake-animation')) return;
+
+            if (clickedValue === currentAnswer) {
+                // Correct Answer
+                playCorrectSound();
+                
+                // Calculate Time Bonus
+                const timeTaken = Date.now() - questionStartTime;
+                let pointsToAdd = 1;
+                
+                if (timeTaken <= 2000) {
+                    pointsToAdd = 4; // 2秒以内なら+4
+                    showScorePopup("+4", "text-orange-500");
+                    showFeedback("超はやい！ +4", "text-orange-500");
+                } else if (timeTaken <= 4000) {
+                    pointsToAdd = 2; // 4秒以内なら+2
+                    showScorePopup("+2", "text-yellow-500");
+                    showFeedback("はやい！ +2", "text-yellow-500");
+                } else {
+                    showScorePopup("+1", "text-green-500");
+                    showFeedback("せいかい！", "text-green-500");
+                }
+                
+                score += pointsToAdd;
+                scoreDisplay.textContent = score;
+                
+                cardElement.classList.add('pop-animation');
+                
+                setTimeout(() => {
+                    cardElement.classList.remove('pop-animation');
+                    generateProblem();
+                }, 800);
+
+            } else {
+                // Incorrect Answer
+                playIncorrectSound();
+                
+                // Penalty
+                score -= 1;
+                scoreDisplay.textContent = score;
+                showScorePopup("-1", "text-red-500");
+                showFeedback("ちがうよ 💦", "text-red-500");
+                
+                cardElement.classList.add('shake-animation');
+                
+                setTimeout(() => {
+                    cardElement.classList.remove('shake-animation');
+                }, 500);
+            }
+        }
+
+        function showFeedback(text, colorClass) {
+            feedbackMessage.textContent = text;
+            feedbackMessage.className = `absolute bottom-1 md:bottom-2 text-lg md:text-xl font-bold transition-opacity duration-200 ${colorClass}`;
+            feedbackMessage.style.opacity = 1;
+            
+            setTimeout(() => {
+                feedbackMessage.style.opacity = 0;
+            }, 1000);
+        }
+
+        function startGame() {
+            isPlaying = true;
+            score = 0;
+            timeLeft = 60; // 60 seconds
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            timeDisplay.classList.remove('text-red-600');
+            
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            resultScreen.classList.remove('flex');
+            
+            generateProblem();
+            
+            // Start Timer
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+                
+                if (timeLeft <= 5 && timeLeft > 0) {
+                    // Visual warning for low time
+                    timeDisplay.parentElement.classList.add('animate-pulse', 'bg-red-100');
+                } else {
+                    timeDisplay.parentElement.classList.remove('animate-pulse', 'bg-red-100');
+                }
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(timerInterval);
+            timeDisplay.parentElement.classList.remove('animate-pulse', 'bg-red-100');
+            timeDisplay.textContent = "0";
+            questionDisplay.textContent = "おわり！";
+            questionDisplay.style.opacity = 1;
+            
+            // Wait a moment before showing results
+            setTimeout(() => {
+                showResultScreen();
+            }, 1500);
+        }
+
+        function showResultScreen() {
+            finalScoreDisplay.textContent = score;
+            resultScreen.classList.remove('hidden');
+            resultScreen.classList.add('flex');
+            
+            // Determine if score qualifies for top 5
+            const isHighScore = highScores.length < 5 || score > (highScores[4]?.score || -Infinity);
+            
+            if (isHighScore && score > -100) { // Check if valid ranking score
+                highScoreEntry.classList.remove('hidden');
+                highScoreEntry.classList.add('flex');
+                backToStartButton.classList.add('hidden');
+                playerNameInput.value = '';
+                playerNameInput.focus();
+            } else {
+                highScoreEntry.classList.add('hidden');
+                highScoreEntry.classList.remove('flex');
+                backToStartButton.classList.remove('hidden');
+            }
+        }
+
+        mainStartButton.addEventListener('click', async () => {
+            await Tone.start();
+            startGame();
+        });
+
+        registerScoreButton.addEventListener('click', () => {
+            const name = playerNameInput.value.trim() || 'ななし';
+            highScores.push({ name, score });
+            
+            // Sort and keep top 5
+            highScores.sort((a, b) => b.score - a.score);
+            highScores = highScores.slice(0, 5);
+            
+            // Save to Local Storage
+            localStorage.setItem('karutaHighScores', JSON.stringify(highScores));
+            
+            returnToStart();
+        });
+
+        backToStartButton.addEventListener('click', returnToStart);
+
+        function returnToStart() {
+            resultScreen.classList.add('hidden');
+            resultScreen.classList.remove('flex');
+            startScreen.classList.remove('hidden');
+            updateRankingDisplay();
+        }
+
+        // Initialize ranking on page load
+        updateRankingDisplay();
+
+    </script>
+</body>
+</html>

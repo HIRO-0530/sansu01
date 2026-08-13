@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>さんすうカルタ - 楽しく学べる足し算・引き算</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 丸みのある親しみやすいフォント (Google Fonts) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #f8fafc;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        .hero-title {
+            text-shadow: 2px 4px 0px rgba(0,0,0,0.1);
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center">
+
+    <header class="w-full max-w-5xl mx-auto px-4 py-12 md:py-20 flex flex-col items-center text-center">
+        <div class="inline-block bg-yellow-100 text-yellow-800 font-bold px-4 py-1 rounded-full mb-4 md:mb-6 shadow-sm border border-yellow-200">
+            iPad・タブレット対応
+        </div>
+        
+        <h1 class="text-5xl md:text-7xl font-black text-green-600 mb-6 tracking-wide hero-title">
+            さんすうカルタ
+        </h1>
+        
+        <p class="text-xl md:text-2xl text-gray-700 font-bold mb-10 leading-relaxed max-w-2xl">
+            カルタをとるように楽しく計算！<br class="hidden md:block">
+            おはじきを使って「数」を視覚的に学べる知育アプリです。
+        </p>
+        
+        <!-- ゲーム本編へのリンク -->
+        <a href="math-karuta.html" class="floating group relative inline-flex items-center justify-center px-10 py-5 font-bold text-white transition-all duration-200 bg-blue-500 rounded-full hover:bg-blue-600 hover:scale-105 shadow-xl hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-300">
+            <span class="text-2xl md:text-3xl mr-2">▶</span>
+            <span class="text-2xl md:text-3xl">今すぐあそぶ (無料)</span>
+        </a>
+    </header>
+
+    <main class="w-full bg-white flex-grow border-t-4 border-green-200 shadow-[0_-10px_30px_rgba(0,0,0,0.02)] pt-16 pb-20 px-4">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-black text-center text-gray-800 mb-12">
+                このアプリの <span class="text-green-500">3つ</span> のとくちょう
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- 特徴1 -->
+                <div class="bg-blue-50 rounded-3xl p-8 text-center border-4 border-blue-100 shadow-sm transition-transform hover:-translate-y-2">
+                    <div class="text-6xl mb-4">⏱️</div>
+                    <h3 class="text-xl md:text-2xl font-bold text-blue-700 mb-4">はやおしタイムアタック</h3>
+                    <p class="text-gray-600 font-bold leading-relaxed">
+                        制限時間は60秒！はやく正解するほどボーナススコアがもらえるから、自然と計算スピードがアップします。
+                    </p>
+                </div>
+                
+                <!-- 特徴2 -->
+                <div class="bg-red-50 rounded-3xl p-8 text-center border-4 border-red-100 shadow-sm transition-transform hover:-translate-y-2">
+                    <div class="text-6xl mb-4">🔴</div>
+                    <h3 class="text-xl md:text-2xl font-bold text-red-700 mb-4">さわって学べる「おはじき」</h3>
+                    <p class="text-gray-600 font-bold leading-relaxed">
+                        計算がわからなくても大丈夫。画面のおはじきを指でなぞって消しながら、視覚的に「数」を理解できます。
+                    </p>
+                </div>
+                
+                <!-- 特徴3 -->
+                <div class="bg-yellow-50 rounded-3xl p-8 text-center border-4 border-yellow-100 shadow-sm transition-transform hover:-translate-y-2">
+                    <div class="text-6xl mb-4">👑</div>
+                    <h3 class="text-xl md:text-2xl font-bold text-yellow-700 mb-4">ランキングで競い合おう</h3>
+                    <p class="text-gray-600 font-bold leading-relaxed">
+                        ハイスコアを出したら名前を登録！兄弟や家族みんなで一緒に遊んで、楽しく競い合うことができます。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full bg-gray-800 py-8 text-center text-gray-400">
+        <p class="font-bold">© 2026 さんすうカルタ</p>
+    </footer>
+
+</body>
+</html>
